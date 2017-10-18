@@ -1,0 +1,37 @@
+- hosts: localhost
+  tasks:
+  - name: Create a fly hostname
+    fly:
+      command: create_hostname
+      fly_auth_key: "{{ fly_auth_key }}"
+      site: "{{ site }}"
+      hostname: "{{ hostname }}"
+    register: result
+
+  - pause:
+      prompt: "Set your DNS CNAME record for {{ hostname }} to point to {{ result.attributes.preview_hostname }}"
+    
+  - name: Add a fly backend
+    fly:
+      command: add_backend
+      fly_auth_key: "{{ fly_auth_key }}"
+      site: "{{ site }}"
+      backend_name: "my_s3_static_site"
+      backend_type: "aws_s3"
+      backend_settings: 
+        bucket: "my_bucket"
+        region: "eu-west-1"
+    register: result
+
+  
+  - name: Add a fly rule
+    fly:
+      command: add_rule
+      fly_auth_key: "{{ fly_auth_key }}"
+      site: "{{ site }}"
+      hostname: "{{ hostname }}"
+      backend_id: '{{ result.id }}'
+      action_type: "rewrite"
+      path: "/"
+      priority: "10"
+      path_replacement: "/"
