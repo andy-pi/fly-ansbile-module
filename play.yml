@@ -1,5 +1,35 @@
 - hosts: localhost
   tasks:
+  
+  - name: create s3 bucket
+    s3_bucket: 
+      name: "{{ bucket_name }}"
+      region: "{{ s3_region }}"
+      aws_access_key: "{{ aws_access_key }}"
+      aws_secret_key: "{{ aws_secret_key }}"
+      
+  - name: sync files to s3
+    s3_sync:
+      bucket: "{{ bucket_name }}"
+      region: "{{ s3_region }}"
+      aws_access_key: "{{ aws_access_key }}"
+      aws_secret_key: "{{ aws_secret_key }}"
+      file_root: "{{ local_path_html }}"
+      file_change_strategy: force
+      permission: public-read
+        
+
+  - name: add website configuration to bucket
+    s3_website:
+      name: "{{ bucket_name }}"
+      region: "{{ s3_region }}"
+      aws_access_key: "{{ aws_access_key }}"
+      aws_secret_key: "{{ aws_secret_key }}"
+      suffix: index.html
+      error_key: errors.html
+      state: present
+  
+  
   - name: Create a fly hostname
     fly:
       command: create_hostname
@@ -9,7 +39,7 @@
     register: result
 
   - pause:
-      prompt: "Set your DNS CNAME record for {{ hostname }} to point to {{ result.attributes.preview_hostname }}"
+      prompt: "Set your DNS CNAME record for {{ hostname }} to point to {{ result.response.preview_hostname }}"
     
   - name: Add a fly backend
     fly:
@@ -19,8 +49,8 @@
       backend_name: "my_s3_static_site"
       backend_type: "aws_s3"
       backend_settings: 
-        bucket: "my_bucket"
-        region: "eu-west-1"
+        bucket: "{{ bucket_name }}"
+        region: "{{ s3_region }}"
     register: result
 
   
@@ -34,4 +64,4 @@
       action_type: "rewrite"
       path: "/"
       priority: "10"
-      path_replacement: "/"
+      path_replacement: "/index.html"

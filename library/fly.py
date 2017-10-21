@@ -19,15 +19,15 @@ EXAMPLES = '''
 # Add new hostname
 - name: Create a fly hostname
   fly:
-    command: create
-    fly_auth_key: {}
+    command: create_hostname
+    fly_auth_key: "{{ fly_auth_key }}"
     site: "example-com"
     hostname: "example.com"
 # View hostname information
 - name: View a fly hostname
   fly:
-    command: view
-    fly_auth_key: {}
+    command: view_hostname
+    fly_auth_key: "{{ fly_auth_key }}"
     site: "example-com"
     hostname: "example.com"
   register: results
@@ -38,7 +38,7 @@ EXAMPLES = '''
   - name: Add a fly backend (s3 bucket)
     fly:
       command: add_backend
-      fly_auth_key: {}
+      fly_auth_key: "{{ fly_auth_key }}"
       site: "example-com"
       backend_name: "s3-1"
       backend_type: "aws_s3"
@@ -53,20 +53,21 @@ EXAMPLES = '''
   - name: Add a fly rule
     fly:
       command: add_rule
-      fly_auth_key: {}
+      fly_auth_key: "{{ fly_auth_key }}"
       site: "example-com"
       hostname: "example.com"
       backend_id: '{{ result.id }}'
       action_type: "rewrite"
       path: "/" # incoming path
       priority: "10"
-      path_replacement: "/" # rewrite to this path on the backend
+      path_replacement: "/index.html" # rewrite to this path on the backend
 
 '''
 
 
 from ansible.module_utils.basic import *
 from ansible.module_utils.urls import *
+
 
 api_endpoint = 'https://fly.io/api/v1/sites/'
 
@@ -88,8 +89,9 @@ class Fly(object):
         payload={"data": { "attributes": { "hostname": hostname } } }
         headers = {'Content-Type':'application/json', 'Authorization': 'Bearer %s' %fly_auth_key}
         resp = open_url(url,method="POST",headers=headers,validate_certs=False,data=json.dumps(payload))
-        resp_json = json.loads(resp.read())
-        self.module.exit_json(changed=True, attributes = resp_json['data']['attributes'])
+        resp_json = resp.read().decode('utf-8')
+        resp_json = json.loads(resp_json)
+        self.module.exit_json(changed=True, response = resp_json['data']['attributes'])
         
     def hostname_view(self): 
         fly_auth_key = self.get_key_or_fail('fly_auth_key')
@@ -99,8 +101,9 @@ class Fly(object):
         headers = {'Content-Type':'application/json', 'Authorization': 'Bearer %s' %fly_auth_key}
         try: 
             resp = open_url(url,method="GET",headers=headers,validate_certs=False)
-            resp_json = json.loads(resp.read())
-            self.module.exit_json(changed=False, attributes = resp_json['data']['attributes'])
+            resp_json = resp.read().decode('utf-8')
+            resp_json = json.loads(resp_json)
+            self.module.exit_json(changed=False, response = resp_json['data']['attributes'])
         except:
             return False
 
@@ -120,7 +123,8 @@ class Fly(object):
                     } } }
                     
         resp = open_url(url,method="POST",headers=headers,validate_certs=False,data=json.dumps(payload))
-        resp_json = json.loads(resp.read())
+        resp_json = resp.read().decode('utf-8')
+        resp_json = json.loads(resp_json)
         self.module.exit_json(changed=True, id = resp_json['data']['id'])
 
     
@@ -151,8 +155,9 @@ class Fly(object):
                     } } }
                     
         resp = open_url(url,method="POST",headers=headers,validate_certs=False,data=json.dumps(payload))
-        resp_json = json.loads(resp.read())
-        self.module.exit_json(changed=True, attributes = resp_json)
+        resp_json = resp.read().decode('utf-8')
+        resp_json = json.loads(resp_json)
+        self.module.exit_json(changed=True, response = resp_json)
     
 
 def handle_request(module):
